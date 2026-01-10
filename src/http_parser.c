@@ -33,6 +33,7 @@ int parse_http_request(const char *buf, size_t buf_len,
     
     snprintf(url_out, 2048, "%.*s", (int)path_len, path);
     
+
     host_out[0] = '\0';
     for (size_t i = 0; i < num_headers; i++) {
         if (headers[i].name_len == 4 && 
@@ -43,14 +44,27 @@ int parse_http_request(const char *buf, size_t buf_len,
         }
     }
     
-    if (strncmp(path, "http://", 7) == 0) {
+    if (path_len > 7 && strncmp(path, "http://", 7) == 0) {
         const char *host_start = path + 7;
-        const char *path_start = strchr(host_start, '/');
-        const char *port_start = strchr(host_start, ':');
+        const char *path_end = path + path_len;
+        const char *path_start = NULL;
+        const char *port_start = NULL;
         
+ 
+        for (const char *p = host_start; p < path_end; p++) {
+            if (*p == '/' && path_start == NULL) {
+                path_start = p;
+                break;
+            }
+            if (*p == ':' && port_start == NULL && path_start == NULL) {
+                port_start = p;
+            }
+        }
+ 
         if (path_start) {
-            strncpy(path_out, path_start, 1024);
-            path_out[1023] = '\0';
+            size_t path_copy_len = path_end - path_start;
+            if (path_copy_len > 1023) path_copy_len = 1023;
+            snprintf(path_out, path_copy_len + 1, "%.*s", (int)path_copy_len, path_start);
         } else {
             strcpy(path_out, "/");
         }
@@ -58,16 +72,23 @@ int parse_http_request(const char *buf, size_t buf_len,
         if (port_start && (!path_start || port_start < path_start)) {
             size_t host_len = port_start - host_start;
             snprintf(host_out, 256, "%.*s", (int)host_len, host_start);
-            *port_out = atoi(port_start + 1);
+            
+
+            size_t port_len = (path_start ? path_start : path_end) - (port_start + 1);
+            char port_str[16];
+            snprintf(port_str, sizeof(port_str), "%.*s", (int)port_len, port_start + 1);
+            *port_out = atoi(port_str);
         } else {
             size_t host_len = path_start ? 
-                             (path_start - host_start) : strlen(host_start);
-            snprintf(host_out, 256, "%.*s", (int)host_len, host_start);
+                             (path_start - host_start) : (path_end - host_start);
+            if (host_len > 0 && host_out[0] == '\0') {
+                snprintf(host_out, 256, "%.*s", (int)host_len, host_start);
+            }
             *port_out = 80;
         }
     } else {
-        strncpy(path_out, url_out, 1024);
-        path_out[1023] = '\0';
+      
+        snprintf(path_out, 1024, "%.*s", (int)path_len, path);
         *port_out = 80;
     }
     
