@@ -1,17 +1,15 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pthread -O1 -Ilib -Isrc
+CFLAGS = -Wall -Wextra -pthread -Ilib -Isrc
 TARGET = proxy
-SRCDIR = src
-LIBDIR = lib
 OBJDIR = obj
 
-SOURCES = $(SRCDIR)/main.c \
-          $(SRCDIR)/cache.c \
-          $(SRCDIR)/http_parser.c \
-          $(SRCDIR)/thread_pool.c \
-          $(SRCDIR)/server_fetch.c \
-          $(SRCDIR)/client_handler.c \
-          $(LIBDIR)/picohttpparser.c
+SOURCES = src/main.c \
+          src/cache.c \
+          src/http_parser.c \
+          src/thread_pool.c \
+          src/server_fetch.c \
+          src/client_handler.c \
+          lib/picohttpparser.c
 
 OBJECTS = $(SOURCES:%.c=$(OBJDIR)/%.o)
 
@@ -25,9 +23,6 @@ $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(TARGET) $(OBJDIR) results
+	rm -rf $(TARGET) $(OBJDIR) results *.dat
 
-test: $(TARGET)
-	./test_proxy.sh
-
-.PHONY: all clean test
+.PHONY: all clean
