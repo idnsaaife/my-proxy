@@ -127,10 +127,11 @@ void handle_client_direct(void *arg) {
     }
     
     close(client_socket);
-    free(client_info);
     printf("[CLIENT] Connection closed\n");
 }
 
 void handle_client_wrapper(void *arg) {
-    handle_client_direct(arg);
+    client_info_t *client_info = arg;
+    handle_client_direct(client_info);
+    free(client_info);  
 }
