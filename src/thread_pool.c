@@ -3,7 +3,22 @@
 #include <stdio.h>
 #include <unistd.h>
 
-static void *worker_thread(void *arg);
+typedef struct task {
+    void (*function)(void *);
+    void *arg;
+    struct task *next;
+} task_t;
+
+struct thread_pool {
+    pthread_t threads[THREAD_POOL_SIZE];
+    task_t *task_queue_head;
+    task_t *task_queue_tail;
+    int task_count;
+    int shutdown;
+    pthread_mutex_t queue_lock;
+    pthread_cond_t queue_not_empty;
+    pthread_cond_t queue_not_full;
+};
 
 void *worker_thread(void *arg) {
     thread_pool_t *pool = (thread_pool_t *)arg;
