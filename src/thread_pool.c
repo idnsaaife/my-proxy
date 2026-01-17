@@ -120,8 +120,6 @@ void thread_pool_destroy(thread_pool_t *pool) {
     pthread_cond_broadcast(&pool->queue_not_empty);
     pthread_mutex_unlock(&pool->queue_lock);
     
-    usleep(100000);
-    
     pthread_mutex_lock(&pool->queue_lock);
     task_t *task = pool->task_queue_head;
     while (task) {
