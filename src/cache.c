@@ -14,31 +14,33 @@ void init_cache(void) {
 }
 
 static void evict_entries(void) {
-    while (cache.total_size > MAX_CACHE_SIZE && list_get_tail(&cache.list) != NULL) {
-        cache_entry_t *victim = list_get_tail(&cache.list);
+    cache_entry_t *victim = list_get_tail(&cache.list);
+
+    while (cache.total_size > MAX_CACHE_SIZE && victim != NULL) {
+        cache_entry_t *prev_victim = victim->prev;
+        
         
         pthread_mutex_lock(&victim->lock);
         int can_evict = (victim->ref_count == 0 && !victim->in_progress);
         pthread_mutex_unlock(&victim->lock);
 
-        if (!can_evict) {
-            victim = victim->prev;
-            if (victim == NULL) break;
-            continue;
+        if (can_evict) {
+            printf("[CACHE] Evicting: %s (size: %zu bytes)\n", 
+                   victim->url, victim->data_size);
+            
+            list_remove(&cache.list, victim);
+            ht_remove(&cache.table, victim);
+            
+            cache.total_size -= victim->data_size;
+            
+            free(victim->url);
+            if (victim->data) free(victim->data);
+            pthread_mutex_destroy(&victim->lock);
+            pthread_cond_destroy(&victim->ready_cond);
+            free(victim);
         }
         
-        printf("[CACHE] Evicting: %s (size: %zu bytes)\n", victim->url, victim->data_size);
-        
-        list_remove(&cache.list, victim);
-        ht_remove(&cache.table, victim);
-        
-        cache.total_size -= victim->data_size;
-        
-        free(victim->url);
-        if (victim->data) free(victim->data);
-        pthread_mutex_destroy(&victim->lock);
-        pthread_cond_destroy(&victim->ready_cond);
-        free(victim);
+        victim = prev_victim;  
     }
 }
 
@@ -48,7 +50,9 @@ cache_entry_t *find_cache_entry(const char *url) {
     cache_entry_t *entry = ht_find(&cache.table, url);
     if (entry != NULL) {
         list_move_to_front(&cache.list, entry);
-        cache_entry_addref(entry);
+        pthread_mutex_lock(&entry->lock);
+        entry->ref_count++;  
+        pthread_mutex_unlock(&entry->lock);
     }
     
     pthread_mutex_unlock(&cache.cache_lock);
@@ -56,6 +60,8 @@ cache_entry_t *find_cache_entry(const char *url) {
 }
 
 cache_entry_t *create_cache_entry(const char *url) {
+
+    
     cache_entry_t *entry = (cache_entry_t *)malloc(sizeof(cache_entry_t));
     if (!entry) return NULL;
     
