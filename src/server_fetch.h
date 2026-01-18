@@ -4,13 +4,16 @@
 #include "cache.h"
 
 #define BUFFER_SIZE 8192
+#define MAX_URL_LEN    2048
+#define MAX_HOST_LEN   256
+#define MAX_PATH_LEN   1024
 
 typedef struct {
     cache_entry_t *entry;
-    char url[2048];
-    char host[256];
+    char url[MAX_URL_LEN];
+    char host[MAX_HOST_LEN];
     int port;
-    char path[1024];
+    char path[MAX_PATH_LEN];
 } fetch_info_t;
 
 void *fetch_from_server(void *arg);

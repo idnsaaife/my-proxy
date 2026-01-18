@@ -18,17 +18,20 @@ void *fetch_from_server(void *arg) {
            fetch_info->url, fetch_info->host, fetch_info->port, fetch_info->path);
     
     printf("[FETCH] Requesting path: %s\n", fetch_info->path);
+    
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket >= 0) {
-        struct hostent *server = gethostbyname(fetch_info->host);
-        if (server != NULL) {
-            struct sockaddr_in server_addr;
-            memset(&server_addr, 0, sizeof(server_addr));
-            server_addr.sin_family = AF_INET;
-            memcpy(&server_addr.sin_addr.s_addr, server->h_addr, server->h_length);
-            server_addr.sin_port = htons(fetch_info->port);
-            
-            if (connect(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) >= 0) {
+        struct addrinfo hints, *result;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;        
+        hints.ai_socktype = SOCK_STREAM; 
+
+        char port_str[6];
+        snprintf(port_str, sizeof(port_str), "%d", fetch_info->port);
+
+        int err = getaddrinfo(fetch_info->host, port_str, &hints, &result);
+        if (err == 0) {
+            if (connect(server_socket, result->ai_addr, result->ai_addrlen) >= 0) {
                 char request[2048];
                 snprintf(request, sizeof(request),
                     "GET %s HTTP/1.0\r\n"
@@ -37,7 +40,8 @@ void *fetch_from_server(void *arg) {
                     "User-Agent: ProxyCache/1.0\r\n"
                     "Accept: */*\r\n"
                     "\r\n", fetch_info->path, fetch_info->host);
-                printf("---\n%s---\n", request); 
+                printf("---\n%s---\n", request);
+                
                 if (send(server_socket, request, strlen(request), 0) >= 0) {
                     pthread_mutex_lock(&entry->lock);
                     entry->data = malloc(BUFFER_SIZE);
@@ -86,8 +90,9 @@ void *fetch_from_server(void *arg) {
             } else {
                 perror("Connection failed");
             }
+            freeaddrinfo(result);
         } else {
-            printf("Host not found: %s\n", fetch_info->host);
+            printf("Host not found: %s (%s)\n", fetch_info->host, gai_strerror(err));
         }
         
         close(server_socket);
