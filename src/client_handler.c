@@ -103,9 +103,11 @@ void handle_client_direct(void *arg) {
         
         fetch_info_t *fetch_info = malloc(sizeof(fetch_info_t));
         fetch_info->entry = entry;
-        strncpy(fetch_info->url, url, sizeof(fetch_info->url) - 1);
-        strncpy(fetch_info->host, host, sizeof(fetch_info->host) - 1);
-        strncpy(fetch_info->path, path, sizeof(fetch_info->path) - 1);
+
+        snprintf(fetch_info->url, sizeof(fetch_info->url), "%s", url);
+        snprintf(fetch_info->host, sizeof(fetch_info->host), "%s", host);
+        snprintf(fetch_info->path, sizeof(fetch_info->path), "%s", path);
+
         fetch_info->port = port;
         
         pthread_t fetch_thread;
