@@ -40,13 +40,19 @@ cache_entry_t *list_get_tail(list_t *list) {
 
 void list_remove(list_t *list, cache_entry_t *entry) {
     if (entry->prev) {
-        entry->prev->next = NULL;
+        entry->prev->next = entry->next; 
+    } else {
+        list->head = entry->next;
     }
-    list->tail = entry->prev;
-    if (list->tail == NULL) {
-        list->head = NULL;
+    
+    if (entry->next) {
+        entry->next->prev = entry->prev;
+    } else {
+        list->tail = entry->prev;
     }
-    entry->prev = entry->next = NULL;
+    
+    entry->prev = NULL;
+    entry->next = NULL;
 }
 
 void list_add_front(list_t *list, cache_entry_t *entry) {
