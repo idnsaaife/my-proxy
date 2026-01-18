@@ -3,8 +3,8 @@
 
 #include <pthread.h>
 
-#define THREAD_POOL_SIZE 20 
-#define TASK_QUEUE_SIZE 256
+#define THREAD_POOL_SIZE 50
+#define TASK_QUEUE_SIZE 512
 
 typedef struct thread_pool thread_pool_t;
 
