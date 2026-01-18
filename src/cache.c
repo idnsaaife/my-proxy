@@ -6,54 +6,22 @@
 cache_t cache;
 
 void init_cache(void) {
-    cache.head = NULL;
-    cache.tail = NULL;
-    memset(cache.hash_table, 0, sizeof(cache.hash_table));
+    list_init(&cache.list);
+    ht_init(&cache.table);
     cache.total_size = 0;
     pthread_mutex_init(&cache.cache_lock, NULL);
-    printf("Cache initialized (max size: %d MB)\n", MAX_CACHE_SIZE / 1024 / 1024);
+    printf("Cache initialized (max size: %d Mb)\n", MAX_CACHE_SIZE / 1024 / 1024);
 }
 
-unsigned int hash_url(const char *url) {
-    unsigned int hash = 5381;
-    int c;
-    while ((c = *url++))
-        hash = ((hash << 5) + hash) + c;
-    return hash % CACHE_HASH_SIZE;
-}
-
-void move_to_front(cache_entry_t *entry) {
-    if (entry == cache.head) {
-        return;
-    }
-    
-    if (entry->prev) {
-        entry->prev->next = entry->next;
-    }
-    if (entry->next) {
-        entry->next->prev = entry->prev;
-    }
-    if (entry == cache.tail) {
-        cache.tail = entry->prev;
-    }
-    
-    entry->prev = NULL;
-    entry->next = cache.head;
-    if (cache.head) {
-        cache.head->prev = entry;
-    }
-    cache.head = entry;
-    
-    if (cache.tail == NULL) {
-        cache.tail = entry;
-    }
-}
-
-void evict_entries(void) {
-    while (cache.total_size > MAX_CACHE_SIZE && cache.tail != NULL) {
-        cache_entry_t *victim = cache.tail;
+static void evict_entries(void) {
+    while (cache.total_size > MAX_CACHE_SIZE && list_get_tail(&cache.list) != NULL) {
+        cache_entry_t *victim = list_get_tail(&cache.list);
         
-        if (victim->ref_count > 0 || victim->in_progress) {
+        pthread_mutex_lock(&victim->lock);
+        int can_evict = (victim->ref_count == 0 && !victim->in_progress);
+        pthread_mutex_unlock(&victim->lock);
+
+        if (!can_evict) {
             victim = victim->prev;
             if (victim == NULL) break;
             continue;
@@ -61,23 +29,8 @@ void evict_entries(void) {
         
         printf("[CACHE] Evicting: %s (size: %zu bytes)\n", victim->url, victim->data_size);
         
-        if (victim->prev) {
-            victim->prev->next = NULL;
-        }
-        cache.tail = victim->prev;
-        if (cache.tail == NULL) {
-            cache.head = NULL;
-        }
-        
-        unsigned int hash = hash_url(victim->url);
-        cache_entry_t **ptr = &cache.hash_table[hash];
-        while (*ptr != NULL) {
-            if (*ptr == victim) {
-                *ptr = victim->hash_next;
-                break;
-            }
-            ptr = &(*ptr)->hash_next;
-        }
+        list_remove(&cache.list, victim);
+        ht_remove(&cache.table, victim);
         
         cache.total_size -= victim->data_size;
         
@@ -90,22 +43,16 @@ void evict_entries(void) {
 }
 
 cache_entry_t *find_cache_entry(const char *url) {
-    unsigned int hash = hash_url(url);
     pthread_mutex_lock(&cache.cache_lock);
     
-    cache_entry_t *entry = cache.hash_table[hash];
-    while (entry != NULL) {
-        if (strcmp(entry->url, url) == 0) {
-            move_to_front(entry);
-            cache_entry_addref(entry);
-            pthread_mutex_unlock(&cache.cache_lock);
-            return entry;
-        }
-        entry = entry->hash_next;
+    cache_entry_t *entry = ht_find(&cache.table, url);
+    if (entry != NULL) {
+        list_move_to_front(&cache.list, entry);
+        cache_entry_addref(entry);
     }
     
     pthread_mutex_unlock(&cache.cache_lock);
-    return NULL;
+    return entry;
 }
 
 cache_entry_t *create_cache_entry(const char *url) {
@@ -129,18 +76,8 @@ cache_entry_t *create_cache_entry(const char *url) {
     
     pthread_mutex_lock(&cache.cache_lock);
     
-    unsigned int hash = hash_url(url);
-    entry->hash_next = cache.hash_table[hash];
-    cache.hash_table[hash] = entry;
-    
-    entry->next = cache.head;
-    if (cache.head != NULL) {
-        cache.head->prev = entry;
-    }
-    cache.head = entry;
-    if (cache.tail == NULL) {
-        cache.tail = entry;
-    }
+    ht_insert(&cache.table, entry);
+    list_add_front(&cache.list, entry);
     
     pthread_mutex_unlock(&cache.cache_lock);
     
@@ -172,7 +109,7 @@ void finalize_cache_entry(cache_entry_t *entry) {
 void cleanup_cache(void) {
     pthread_mutex_lock(&cache.cache_lock);
     
-    cache_entry_t *entry = cache.head;
+    cache_entry_t *entry = cache.list.head;
     while (entry != NULL) {
         cache_entry_t *next = entry->next;
         

@@ -3,10 +3,11 @@
 
 #include <pthread.h>
 #include <stddef.h>
+#include "list.h"
+#include "hashtable.h"
 
-#define MAX_CACHE_SIZE 104857600  // 100 MB
-#define MAX_OBJECT_SIZE (10485760 * 50)  // 500 MB
-#define CACHE_HASH_SIZE 1024
+#define MAX_CACHE_SIZE  (600 * 1024 * 1024)  // 600mb
+#define MAX_OBJECT_SIZE (300 * 1024 * 1024) // 300mb
 
 typedef struct cache_entry {
     char *url;
@@ -26,9 +27,8 @@ typedef struct cache_entry {
 } cache_entry_t;
 
 typedef struct {
-    cache_entry_t *head;
-    cache_entry_t *tail;
-    cache_entry_t *hash_table[CACHE_HASH_SIZE];
+    list_t list;
+    hashtable_t table;
     size_t total_size;
     pthread_mutex_t cache_lock;
 } cache_t;
@@ -37,9 +37,6 @@ extern cache_t cache;
 
 void init_cache(void);
 void cleanup_cache(void);
-unsigned int hash_url(const char *url);
-void move_to_front(cache_entry_t *entry);
-void evict_entries(void);
 cache_entry_t *find_cache_entry(const char *url);
 cache_entry_t *create_cache_entry(const char *url);
 void cache_entry_addref(cache_entry_t *entry);

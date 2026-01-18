@@ -1,10 +1,12 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pthread -Ilib -Isrc
+CFLAGS = -Wall -Wextra -Werror -pthread -Ilib -Isrc -O2 -g -fsanitize=thread
 TARGET = proxy
 OBJDIR = obj
 
 SOURCES = src/main.c \
           src/cache.c \
+          src/list.c \
+          src/hashtable.c \
           src/http_parser.c \
           src/thread_pool.c \
           src/server_fetch.c \
