@@ -3,6 +3,7 @@
 
 #include <pthread.h>
 #include <stddef.h>
+#include <stdatomic.h>
 #include "list.h"
 #include "hashtable.h"
 
@@ -19,7 +20,7 @@ typedef struct cache_entry {
     int error;
     pthread_mutex_t lock;
     pthread_cond_t ready_cond;
-    int ref_count;
+    atomic_int ref_count;
     
     struct cache_entry *prev;
     struct cache_entry *next;

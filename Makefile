@@ -11,6 +11,7 @@ SOURCES = src/main.c \
           src/thread_pool.c \
           src/server_fetch.c \
           src/client_handler.c \
+          src/logger.c \
           lib/picohttpparser.c
 
 OBJECTS = $(SOURCES:%.c=$(OBJDIR)/%.o)
