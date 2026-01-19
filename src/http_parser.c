@@ -1,5 +1,5 @@
 #include "http_parser.h"
-#include "../lib/picohttpparser.h"
+#include "../libs/picohttpparser/picohttpparser.h"
 #include "config.h"
 #include <string.h>
 #include <stdio.h>
