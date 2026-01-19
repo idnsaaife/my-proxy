@@ -1,5 +1,6 @@
 #include "http_parser.h"
 #include "../lib/picohttpparser.h"
+#include "config.h"
 #include <string.h>
 #include <stdio.h>
 #include <strings.h>
@@ -11,7 +12,7 @@ int parse_http_request(const char *buf, size_t buf_len,
     const char *method, *path;
     size_t method_len, path_len;
     int minor_version;
-    struct phr_header headers[100];
+    struct phr_header headers[HTTP_HEADER_MAX_COUNT];
     size_t num_headers = sizeof(headers) / sizeof(headers[0]);
     
     int pret = phr_parse_request(buf, buf_len,
@@ -25,20 +26,20 @@ int parse_http_request(const char *buf, size_t buf_len,
         return -1;
     }
     
-    snprintf(method_out, 16, "%.*s", (int)method_len, method);
+    snprintf(method_out, HTTP_METHOD_MAX_LEN, "%.*s", (int)method_len, method);
     
     if (method_len != 3 || memcmp(method, "GET", 3) != 0) {
         return -1;
     }
     
-    snprintf(url_out, 2048, "%.*s", (int)path_len, path);
+    snprintf(url_out, HTTP_URL_MAX_LEN, "%.*s", (int)path_len, path);
     
 
     host_out[0] = '\0';
     for (size_t i = 0; i < num_headers; i++) {
         if (headers[i].name_len == 4 && 
             strncasecmp(headers[i].name, "Host", 4) == 0) {
-            snprintf(host_out, 256, "%.*s", 
+            snprintf(host_out, HTTP_HOST_MAX_LEN, "%.*s", 
                     (int)headers[i].value_len, headers[i].value);
             break;
         }
@@ -63,15 +64,15 @@ int parse_http_request(const char *buf, size_t buf_len,
  
         if (path_start) {
             size_t path_copy_len = path_end - path_start;
-            if (path_copy_len > 1023) path_copy_len = 1023;
-            snprintf(path_out, path_copy_len + 1, "%.*s", (int)path_copy_len, path_start);
+            if (path_copy_len >= HTTP_PATH_MAX_LEN) path_copy_len = HTTP_PATH_MAX_LEN - 1;
+            snprintf(path_out, HTTP_PATH_MAX_LEN, "%.*s", (int)path_copy_len, path_start);
         } else {
             strcpy(path_out, "/");
         }
         
         if (port_start && (!path_start || port_start < path_start)) {
             size_t host_len = port_start - host_start;
-            snprintf(host_out, 256, "%.*s", (int)host_len, host_start);
+            snprintf(host_out, HTTP_HOST_MAX_LEN, "%.*s", (int)host_len, host_start);
             
 
             size_t port_len = (path_start ? path_start : path_end) - (port_start + 1);
@@ -82,7 +83,7 @@ int parse_http_request(const char *buf, size_t buf_len,
             size_t host_len = path_start ? 
                              (path_start - host_start) : (path_end - host_start);
             if (host_len > 0 && host_out[0] == '\0') {
-                snprintf(host_out, 256, "%.*s", (int)host_len, host_start);
+                snprintf(host_out, HTTP_HOST_MAX_LEN, "%.*s", (int)host_len, host_start);
             }
             *port_out = 80;
         }

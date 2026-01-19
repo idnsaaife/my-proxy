@@ -94,6 +94,8 @@ cache_entry_t *create_cache_entry(const char *url) {
     entry->ready = 0;
     entry->in_progress = 1;
     entry->error = 0;
+    entry->should_cache = 1;
+    
     atomic_init(&entry->ref_count, 1); 
     entry->prev = NULL;
     entry->next = NULL;
@@ -142,6 +144,12 @@ void cache_entry_release(cache_entry_t *entry) {
 
 void finalize_cache_entry(cache_entry_t *entry) {
     pthread_mutex_lock(&cache.cache_lock);
+
+    if (!entry->should_cache) {
+        LOG_INFO("Entry not added to cache (too large): %s", entry->url);
+        pthread_mutex_unlock(&cache.cache_lock);
+        return;
+    }
     
     cache.total_size += entry->data_size;
     
@@ -156,6 +164,7 @@ void finalize_cache_entry(cache_entry_t *entry) {
     
     pthread_mutex_unlock(&cache.cache_lock);
 }
+
 
 void cleanup_cache(void) {
     LOG_INFO("Starting cache cleanup...");

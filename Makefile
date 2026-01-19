@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Werror -pthread -Ilib -Isrc -O2 -g -fsanitize=thread
+CFLAGS = -Wall -Wextra -Werror -pthread -Ilibs/picohttpparser -Isrc -O2 -g -fsanitize=thread
+LDFLAGS = -lpthread -fsanitize=thread
 TARGET = proxy
 OBJDIR = obj
 
@@ -12,14 +13,14 @@ SOURCES = src/main.c \
           src/server_fetch.c \
           src/client_handler.c \
           src/logger.c \
-          lib/picohttpparser.c
+          libs/picohttpparser/picohttpparser.c
 
 OBJECTS = $(SOURCES:%.c=$(OBJDIR)/%.o)
 
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 $(OBJDIR)/%.o: %.c
 	@mkdir -p $(dir $@)

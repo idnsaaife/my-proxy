@@ -4,7 +4,7 @@
 #include <netinet/in.h>
 #include "cache.h"
 
-typedef struct {
+typedef struct { 
     int client_socket;
     struct sockaddr_in client_addr;
 } client_info_t;

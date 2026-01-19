@@ -9,9 +9,8 @@
 #include "thread_pool.h"
 #include "client_handler.h"
 #include "logger.h"
+#include "config.h"
 
-#define PORT 1234
-#define MAX_CLIENTS 100
 
 int main(void) {
     log_init(LOG_DEBUG, "proxy.log");

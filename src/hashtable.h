@@ -1,7 +1,8 @@
 #ifndef HASHTABLE_H
 #define HASHTABLE_H
 
-#define HASHTABLE_SIZE 1024
+#include "config.h"
+
 
 typedef struct cache_entry cache_entry_t;
 

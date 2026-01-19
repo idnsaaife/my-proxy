@@ -1,4 +1,5 @@
 #include "logger.h"
+#include "cache.h"
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>

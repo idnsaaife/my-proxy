@@ -1,5 +1,6 @@
 #include "client_handler.h"
 #include "cache.h"
+#include "config.h"
 #include "http_parser.h"
 #include "server_fetch.h"
 #include "logger.h"
@@ -72,7 +73,7 @@ void handle_client_direct(void *arg) {
     
     buffer[bytes_read] = '\0';
     
-    char method[16], url[2048], host[256], path[1024];
+    char method[HTTP_METHOD_MAX_LEN], url[HTTP_URL_MAX_LEN], host[HTTP_HOST_MAX_LEN], path[HTTP_PATH_MAX_LEN];
     int port;
     
     int parse_result = parse_http_request(buffer, bytes_read,

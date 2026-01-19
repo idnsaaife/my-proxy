@@ -7,8 +7,7 @@
 #include "list.h"
 #include "hashtable.h"
 
-#define MAX_CACHE_SIZE  (600 * 1024 * 1024)  // 600mb
-#define MAX_OBJECT_SIZE (300 * 1024 * 1024) // 300mb
+
 
 typedef struct cache_entry {
     char *url;
@@ -18,6 +17,7 @@ typedef struct cache_entry {
     int ready;
     int in_progress;
     int error;
+    int should_cache;
     pthread_mutex_t lock;
     pthread_cond_t ready_cond;
     atomic_int ref_count;
