@@ -147,15 +147,16 @@ void *fetch_from_server(void *arg) {
              entry->should_cache ? "yes" : "no"); 
     
     pthread_mutex_lock(&entry->lock);
-    entry->in_progress = 0;
-    entry->ready = 1;
+    entry->state = CACHE_ENTRY_READY;
     if (!success || total_received == 0) {
-        entry->error = 1;  
+        entry->state = CACHE_ENTRY_ERROR;
+    } else if (!entry->should_cache) {
+        entry->state = CACHE_ENTRY_TOO_LARGE;
     }
     pthread_cond_broadcast(&entry->ready_cond);
     pthread_mutex_unlock(&entry->lock);
     
-    if (!entry->error && total_received > 0 && entry->should_cache) {
+    if (entry->state != CACHE_ENTRY_ERROR && total_received > 0 && entry->should_cache) {
         finalize_cache_entry(entry);
     }
     

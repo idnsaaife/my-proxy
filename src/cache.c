@@ -25,7 +25,7 @@ static void evict_entries(void) {
         
         pthread_mutex_lock(&victim->lock);
         int ref_count = atomic_load(&victim->ref_count); 
-        int can_evict = (ref_count == 0 && !victim->in_progress);
+        int can_evict = (ref_count == 0 && victim->state != CACHE_ENTRY_FETCHING);
         pthread_mutex_unlock(&victim->lock);
 
         if (can_evict) {
@@ -91,9 +91,7 @@ cache_entry_t *create_cache_entry(const char *url) {
     entry->data = NULL;
     entry->data_size = 0;
     entry->capacity = 0;
-    entry->ready = 0;
-    entry->in_progress = 1;
-    entry->error = 0;
+    entry->state = CACHE_ENTRY_FETCHING;
     entry->should_cache = 1;
     
     atomic_init(&entry->ref_count, 1); 

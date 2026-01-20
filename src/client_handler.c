@@ -16,17 +16,17 @@
 void send_to_client(int client_socket, cache_entry_t *entry) {
     pthread_mutex_lock(&entry->lock);
     
-    while (!entry->ready) {
+    while (entry->state == CACHE_ENTRY_FETCHING) {
         pthread_cond_wait(&entry->ready_cond, &entry->lock);
     }
     
-    if (!entry->should_cache) {
+    if (entry->state == CACHE_ENTRY_TOO_LARGE) {
         pthread_mutex_unlock(&entry->lock);
         LOG_INFO("Large file was streamed directly");
         return;
     }
     
-    if (entry->error) {
+    if (entry->state == CACHE_ENTRY_ERROR) {
         pthread_mutex_unlock(&entry->lock);
         const char *error_response = 
             "HTTP/1.0 502 Bad Gateway\r\n"
