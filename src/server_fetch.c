@@ -76,6 +76,10 @@ void *fetch_from_server(void *arg) {
                                 entry->data = NULL;
                                 entry->capacity = 0;
                                 entry->data_size = 0;
+                                pthread_mutex_lock(&cache.cache_lock);
+                                ht_remove(&cache.table, entry);
+                                list_remove(&cache.list, entry);
+                                pthread_mutex_unlock(&cache.cache_lock);
                             }
                             
                             if (!entry->should_cache) {
