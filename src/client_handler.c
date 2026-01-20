@@ -13,7 +13,6 @@
 #include <pthread.h>
 #include <errno.h>
 
-
 void send_to_client(int client_socket, cache_entry_t *entry) {
     pthread_mutex_lock(&entry->lock);
     
@@ -21,7 +20,13 @@ void send_to_client(int client_socket, cache_entry_t *entry) {
         pthread_cond_wait(&entry->ready_cond, &entry->lock);
     }
     
-    if (entry->error || entry->data_size == 0) {
+    if (!entry->should_cache) {
+        pthread_mutex_unlock(&entry->lock);
+        LOG_INFO("Large file was streamed directly");
+        return;
+    }
+    
+    if (entry->error) {
         pthread_mutex_unlock(&entry->lock);
         const char *error_response = 
             "HTTP/1.0 502 Bad Gateway\r\n"
@@ -49,7 +54,6 @@ void send_to_client(int client_socket, cache_entry_t *entry) {
     pthread_mutex_unlock(&entry->lock);
     LOG_INFO("Sent %zu bytes to client for %s", total_sent, entry->url);
 }
-
 
 void handle_client_direct(void *arg) {
     client_info_t *client_info = (client_info_t *)arg;
@@ -122,6 +126,7 @@ void handle_client_direct(void *arg) {
         }
         
         fetch_info->entry = entry;
+        fetch_info->client_socket = client_socket;
         snprintf(fetch_info->url, sizeof(fetch_info->url), "%s", url);
         snprintf(fetch_info->host, sizeof(fetch_info->host), "%s", host);
         snprintf(fetch_info->path, sizeof(fetch_info->path), "%s", path);
@@ -148,7 +153,6 @@ void handle_client_direct(void *arg) {
     close(client_socket);
     LOG_DEBUG("Connection closed for %s", inet_ntoa(client_info->client_addr.sin_addr));
 }
-
 
 void handle_client_wrapper(void *arg) {
     client_info_t *client_info = arg;

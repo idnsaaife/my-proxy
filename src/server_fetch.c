@@ -10,13 +10,14 @@
 #include <netdb.h>
 #include <errno.h>
 
-
 void *fetch_from_server(void *arg) {
     fetch_info_t *fetch_info = (fetch_info_t *)arg;
     cache_entry_t *entry = fetch_info->entry;
+    int client_socket = fetch_info->client_socket;
     int server_socket = -1;
     int success = 0;
     size_t total_received = 0;
+    int headers_sent_to_client = 0;
     
     LOG_INFO("Starting fetch: %s from %s:%d%s", 
              fetch_info->url, fetch_info->host, fetch_info->port, fetch_info->path);
@@ -36,7 +37,7 @@ void *fetch_from_server(void *arg) {
             if (connect(server_socket, result->ai_addr, result->ai_addrlen) >= 0) {
                 LOG_DEBUG("Connected to %s:%d", fetch_info->host, fetch_info->port);
                 
-                char request[HTTP_REQUEST_MAX_LEN ];
+                char request[HTTP_REQUEST_MAX_LEN];
                 snprintf(request, sizeof(request),
                     "GET %s HTTP/1.0\r\n"
                     "Host: %s\r\n"
@@ -60,11 +61,17 @@ void *fetch_from_server(void *arg) {
                             pthread_mutex_lock(&entry->lock);
                             
                             if (entry->should_cache && total_received + bytes_received > MAX_OBJECT_SIZE) {
-                                LOG_WARN("Object too large (%zu MB > %d MB): %s - will not cache", 
+                                LOG_WARN("Object too large (%zu MB > %d MB): %s - switching to streaming", 
                                          (total_received + bytes_received) / 1024 / 1024,
                                          MAX_OBJECT_SIZE / 1024 / 1024, fetch_info->url);
                                 
-                                entry->should_cache = 0; 
+                                entry->should_cache = 0;
+                                
+                                if (!headers_sent_to_client && entry->data_size > 0) {
+                                    send(client_socket, entry->data, entry->data_size, 0);
+                                    headers_sent_to_client = 1;
+                                }
+                                
                                 free(entry->data);
                                 entry->data = NULL;
                                 entry->capacity = 0;
@@ -72,8 +79,9 @@ void *fetch_from_server(void *arg) {
                             }
                             
                             if (!entry->should_cache) {
-                                total_received += bytes_received;
                                 pthread_mutex_unlock(&entry->lock);
+                                send(client_socket, buffer, bytes_received, 0);
+                                total_received += bytes_received;
                                 continue;  
                             }
                             
@@ -137,7 +145,7 @@ void *fetch_from_server(void *arg) {
     pthread_mutex_lock(&entry->lock);
     entry->in_progress = 0;
     entry->ready = 1;
-    if (!success || total_received == 0 || !entry->should_cache) {
+    if (!success || total_received == 0) {
         entry->error = 1;  
     }
     pthread_cond_broadcast(&entry->ready_cond);

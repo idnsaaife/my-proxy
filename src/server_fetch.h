@@ -10,6 +10,7 @@ typedef struct {
     char host[HTTP_HOST_MAX_LEN];
     int port;
     char path[HTTP_PATH_MAX_LEN];
+    int client_socket;
 } fetch_info_t;
 
 void *fetch_from_server(void *arg);
